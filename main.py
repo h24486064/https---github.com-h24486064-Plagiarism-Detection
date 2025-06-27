@@ -95,10 +95,20 @@ def run_online_check(target_doc_path: str):
 
 
 if __name__ == '__main__':
-    target_document = "submissions/my_new_paper_online.txt"
-    os.makedirs('submissions', exist_ok=True)
-    if not os.path.exists(target_document):
-        with open(target_document, 'w', encoding='utf-8') as f:
-            f.write("A key finding in recent transformer-based models is the emergence of in-context learning, where the model learns to perform tasks purely from examples given in the prompt, without any weight updates. This capability was notably demonstrated by Brown et al. in their 2020 paper on GPT-3.")
+    # --- 新增：自動建立所需資料夾 ---
+    # os.makedirs 會建立資料夾，exist_ok=True 表示如果資料夾已存在，也不會報錯。
+    os.makedirs("submissions", exist_ok=True)
+    os.makedirs("cache", exist_ok=True)
+    os.makedirs("reports", exist_ok=True)
+    # ---------------------------------
+
+    # --- 請修改這裡 ---
+    target_document = "submissions/辛學長碩論.pdf" 
+    # ------------------
     
-    run_online_check(target_document)
+    # 檢查文件是否存在
+    if not os.path.exists(target_document):
+        print(f"錯誤：找不到目標文件 '{target_document}'。")
+        print("請確認您已經將檔案放入 'submissions' 資料夾，並且檔名正確。")
+    else:
+        run_online_check(target_document)
