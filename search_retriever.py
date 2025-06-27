@@ -18,7 +18,7 @@ class SearchRetriever:
 
         url = "https://www.googleapis.com/customsearch/v1"
         params = {
-            'key': config.GOOGLE_API_KEY,
+            'key': config.GOOGLE_API_KEY_SEARCH,
             'cx': config.GOOGLE_CSE_ID,
             'q': query,
             'num': config.SEARCH_RESULTS_PER_QUERY

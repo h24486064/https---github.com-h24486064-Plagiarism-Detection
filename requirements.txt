@@ -1,8 +1,11 @@
-openai
-tiktoken
+# requirements.txt
+
+# tiktoken 是 OpenAI 的工具，但 document_processor.py 仍有使用，暫時保留
 psycopg2-binary
 pgvector
 python-dotenv
 pypdf2
 langchain
 langchain-text-splitters
+google-generativeai
+trafilatura

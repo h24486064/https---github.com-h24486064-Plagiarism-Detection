@@ -7,9 +7,6 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from tiktoken import get_encoding
 import PyPDF2
 
-# 假設使用 PyPDF2 讀取 PDF
-# pip install pypdf2
-
 
 class Chunk:
     def __init__(self, text: str, doc_id: str, chunk_id: int, start_char: int, end_char: int):

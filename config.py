@@ -1,23 +1,23 @@
 # config.py
 
 import os
-# NEW: Import the dotenv library
 from dotenv import load_dotenv
 
-# NEW: Add this line at the top to load the .env file
-# 它會尋找同目錄或上層目錄的 .env 檔案並載入
+# 載入 .env 檔案
 load_dotenv()
 
 # --- Google Gemini API ---
-# 這行程式碼維持不變，但現在它會從 .env 檔案中讀取金鑰
+# GOOGLE_API_KEY 會從 .env 檔案中讀取
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
-# --- Model Selection ---
-EMBEDDING_MODEL = "text-embedding-004"
-GENERATIVE_MODEL = "gemini-2.5-flash-latest"
+# --- Model Selection (全部使用 Google 的模型) ---
+# 用於生成 Embedding 的模型
+EMBEDDING_MODEL = "text-embedding-004" 
+# 用於生成搜尋查詢、以及進行最終裁決的語言模型
+GENERATIVE_MODEL = "gemini-1.5-flash-latest"
 
 # --- Google Search API ---
-# 這兩行也維持不變
+# 維持不變
 GOOGLE_API_KEY_SEARCH = os.getenv("GOOGLE_API_KEY_SEARCH")
 GOOGLE_CSE_ID = os.getenv("GOOGLE_CSE_ID")
 
@@ -26,8 +26,8 @@ GOOGLE_CSE_ID = os.getenv("GOOGLE_CSE_ID")
 # --- Processing Parameters ---
 CHUNK_SIZE = 300
 CHUNK_OVERLAP = 50
-SEARCH_RESULTS_PER_QUERY = 3
-SIMILARITY_THRESHOLD = 0.82
+SEARCH_RESULTS_PER_QUERY = 10
+SIMILARITY_THRESHOLD = 0.80
 
 # --- Caching ---
 CACHE_DIR = "cache"

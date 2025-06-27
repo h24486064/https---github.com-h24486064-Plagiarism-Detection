@@ -1,5 +1,5 @@
 # similarity_service.py
-import openai
+import google.generativeai as genai # 替換 import
 from typing import List, Dict, Tuple
 from numpy import dot
 from numpy.linalg import norm
@@ -10,7 +10,7 @@ from cache_manager import CacheManager
 
 class SimilarityService:
     def __init__(self, cache_manager: CacheManager):
-        self.client = openai.OpenAI(api_key=config.OPENAI_API_KEY)
+        # 不再需要初始化 client，因為 get_embedding 會直接呼叫
         self.cache = cache_manager
 
     def _cosine_similarity(self, a, b):
@@ -24,11 +24,14 @@ class SimilarityService:
             if cached_data and 'embedding' in cached_data:
                 return cached_data['embedding']
 
-        # 快取未命中，呼叫 API
-        response = self.client.embeddings.create(
-            input=text, model=config.EMBEDDING_MODEL
+        # 快取未命中，呼叫 Google API
+        # 注意：genai 的 embedding 介面與 openai 不同
+        response = genai.embed_content(
+            model=config.EMBEDDING_MODEL,
+            content=text,
+            task_type="RETRIEVAL_DOCUMENT" # 或 "SEMANTIC_SIMILARITY"
         )
-        embedding = response.data[0].embedding
+        embedding = response['embedding']
 
         # 更新快取
         if url != "local":
@@ -53,7 +56,7 @@ class SimilarityService:
         for url, content in candidate_pages.items():
             if not content: continue
             
-            # 簡單起見，直接比對整篇文章。更精確的做法是將來源文章也切塊。
+            # 直接比對整篇文章
             candidate_vec = self.get_embedding(content, url)
             
             score = self._cosine_similarity(target_vec, candidate_vec)

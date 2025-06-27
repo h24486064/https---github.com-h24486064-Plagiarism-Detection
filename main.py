@@ -3,7 +3,8 @@ import os
 import time
 
 import config
-from document_processor import process_document, Chunk
+# --- 修改處 1: 從 document_processor 匯入 _pdf_to_text 函式 ---
+from document_processor import process_document, Chunk, _pdf_to_text
 from cache_manager import CacheManager
 from search_retriever import SearchRetriever
 from analysis_service import AnalysisService
@@ -21,11 +22,23 @@ def run_online_check(target_doc_path: str):
     analyzer = AnalysisService()
     similarity = SimilarityService(cache)
     
-    # 讀取原文以供報告使用
-    with open(target_doc_path, 'r', encoding='utf-8') as f:
-        original_text_content = f.read()
+    # --- 修改處 2: 根據檔案類型，用正確的方式讀取原文 ---
+    # 為了最後生成報告，需要預先讀取文件的純文字內容
+    original_text_content = ""
+    if target_doc_path.lower().endswith(".pdf"):
+        # 如果是 PDF，使用 PyPDF2 的函式來提取文字
+        original_text_content = _pdf_to_text(target_doc_path)
+    elif target_doc_path.lower().endswith(".txt"):
+        # 如果是 txt，才用原本的方式讀取
+        with open(target_doc_path, 'r', encoding='utf-8', errors='ignore') as f:
+            original_text_content = f.read()
+    else:
+        print(f"錯誤：不支援的檔案格式 '{target_doc_path}'")
+        return # 如果檔案格式不支援，直接結束程式
 
     # 模組 1: 文件前處理
+    # 這裡的 process_document 內部也會做一次同樣的文字提取，
+    # 雖然有效率可優化的空間，但目前能確保程式正確執行。
     chunks = process_document(target_doc_path, doc_id)
     
     final_results = []
@@ -85,8 +98,14 @@ def run_online_check(target_doc_path: str):
     # 模組 8: 報告輸出
     if final_results:
         print("\n--- 檢測完成，正在生成報告 ---")
-        report_path = report_generator.generate_html_report(original_text_content, final_results, doc_id)
-        print(f"報告已生成: {report_path}")
+        # 注意：您的 report_generator.py 中主函式為 generate_reports
+        # 您可以依照您 report_generator.py 的實際函式名稱呼叫
+        report_generator.generate_reports(
+            original_text=original_text_content, 
+            analysis_results=final_results, 
+            doc_id=doc_id
+        )
+        print(f"報告已生成於 'reports' 資料夾中。")
     else:
         print("\n--- 檢測完成，未發現任何高風險段落 ---")
 
@@ -96,15 +115,12 @@ def run_online_check(target_doc_path: str):
 
 if __name__ == '__main__':
     # --- 新增：自動建立所需資料夾 ---
-    # os.makedirs 會建立資料夾，exist_ok=True 表示如果資料夾已存在，也不會報錯。
     os.makedirs("submissions", exist_ok=True)
     os.makedirs("cache", exist_ok=True)
     os.makedirs("reports", exist_ok=True)
-    # ---------------------------------
 
     # --- 請修改這裡 ---
-    target_document = "submissions/辛學長碩論.pdf" 
-    # ------------------
+    target_document = "submissions/1233333.pdf" 
     
     # 檢查文件是否存在
     if not os.path.exists(target_document):
