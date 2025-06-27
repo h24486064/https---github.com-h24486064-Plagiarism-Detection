@@ -1,6 +1,6 @@
 # search_retriever.py
 import requests
-from typing import List, Dict
+from typing import List, Dict, Optional
 # pip install trafilatura
 from trafilatura import fetch_url, extract
 import config
