@@ -14,3 +14,5 @@ reports/
 # 忽略虛擬環境資料夾 (如果有的話)
 venv/
 .venv/
+sample_ai_plagiarism_report.pdf
+submissions/1-s2.0-074959789190020T-main.pdf

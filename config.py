@@ -14,7 +14,7 @@ GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 # 用於生成 Embedding 的模型
 EMBEDDING_MODEL = "text-embedding-004" 
 # 用於生成搜尋查詢、以及進行最終裁決的語言模型
-GENERATIVE_MODEL = "gemini-1.5-flash-latest"
+GENERATIVE_MODEL = "gemini-2.0-flash"
 
 # --- Google Search API ---
 # 維持不變
@@ -24,8 +24,8 @@ GOOGLE_CSE_ID = os.getenv("GOOGLE_CSE_ID")
 # ... 以下所有其他設定都維持原樣 ...
 
 # --- Processing Parameters ---
-CHUNK_SIZE = 300
-CHUNK_OVERLAP = 50
+CHUNK_SIZE = 1500
+CHUNK_OVERLAP = 100
 SEARCH_RESULTS_PER_QUERY = 10
 SIMILARITY_THRESHOLD = 0.80
 

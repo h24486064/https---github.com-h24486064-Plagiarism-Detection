@@ -47,7 +47,7 @@ def run_online_check(target_doc_path: str):
 
         # --- 流程分支 1: AI 生成檢測 ---
         ai_score = analyzer.get_ai_detection_score(chunk.text)
-        print(f"  - AI 生成分數 (模擬): {ai_score:.2f}")
+        print(f"  - AI 生成分數: {ai_score:.2f}")
 
         # --- 流程分支 2: 線上抄襲比對 ---
         # 1. 候選文件擷取層
@@ -68,7 +68,7 @@ def run_online_check(target_doc_path: str):
         if not top_hits:
             print("  - 未發現高相似度網路來源。")
             # 即使沒抄襲，也可能純 AI 生成
-            if ai_score > 0.8: # 假設高於 0.8 為高風險
+            if ai_score > 80: # 假設高於 80 為高風險
                  final_results.append({
                     "original_chunk": chunk.__dict__,
                     "llm_verdict": {
@@ -120,7 +120,7 @@ if __name__ == '__main__':
     os.makedirs("reports", exist_ok=True)
 
     # --- 請修改這裡 ---
-    target_document = "submissions/1233333.pdf" 
+    target_document = "submissions/1-s2.0-074959789190020T-main.pdf" 
     
     # 檢查文件是否存在
     if not os.path.exists(target_document):

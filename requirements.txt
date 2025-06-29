@@ -4,6 +4,7 @@
 psycopg2-binary
 pgvector
 python-dotenv
+requests
 pypdf2
 langchain
 langchain-text-splitters
