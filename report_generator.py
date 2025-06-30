@@ -1,5 +1,3 @@
-# report_generator.py
-
 import json
 import os
 import html
@@ -18,55 +16,73 @@ def generate_reports(original_text: str, analysis_results: List[Dict], doc_id: s
     print("正在生成報告...")
     os.makedirs(config.REPORT_OUTPUT_DIR, exist_ok=True)
     
-    # 生成 HTML 報告
     html_report_path = _generate_html_report(original_text, analysis_results, doc_id)
     print(f"HTML 報告已生成: {html_report_path}")
 
-    # 生成 JSON 報告
     json_report_path = _generate_json_report(analysis_results, doc_id)
     print(f"JSON 總結已生成: {json_report_path}")
 
 
 def _generate_html_report(original_text: str, analysis_results: List[Dict], doc_id: str) -> str:
-    """產生一份詳細、高亮顯示的 HTML 報告。"""
-    
+    """
+    產生一份詳細、高亮顯示的 HTML 報告。
+    """
     highlighted_text = original_text
     
-    # 從後往前替換，避免字元索引錯亂
+    if not analysis_results:
+        return ""
+
+    min_offset = min(res['original_chunk']['metadata']['start_char'] for res in analysis_results)
+    
     sorted_results = sorted(analysis_results, key=lambda x: x['original_chunk']['metadata']['start_char'], reverse=True)
     
     for result in sorted_results:
         chunk_meta = result['original_chunk']['metadata']
-        start = chunk_meta['start_char']
-        end = chunk_meta['end_char']
         
+        start = chunk_meta['start_char'] - min_offset
+        end = chunk_meta['end_char'] - min_offset
+        
+        if start < 0 or end > len(highlighted_text):
+            print(f"[警告] 偵測到無效的高亮位置 (start={start}, end={end})，已跳過此區塊。")
+            continue
+
         verdict = result.get('llm_verdict', {})
         is_plagiarism = verdict.get('web_plagiarism', False)
         is_ai = verdict.get('ai_generated', False)
         
-        color = "rgba(255, 255, 0, 0.4)" # 黃色 (預設/低風險)
-        if is_plagiarism:
-            color = "rgba(255, 77, 77, 0.5)" # 紅色 (抄襲)
+        color = "rgba(255, 255, 0, 0.4)"
+        if is_plagiarism and is_ai:
+             color = "rgba(255, 0, 255, 0.5)"
+        elif is_plagiarism:
+            color = "rgba(255, 77, 77, 0.5)"
         elif is_ai:
-            color = "rgba(255, 165, 0, 0.5)" # 橘色 (AI 生成)
+            color = "rgba(255, 165, 0, 0.5)"
 
-        # 建立詳細的提示框文字
         tooltip_text = f"判斷理由: {html.escape(verdict.get('justification', 'N/A'))}\n"
         tooltip_text += f"信賴度: {verdict.get('confidence', 0.0):.2f}"
         
         original_segment = highlighted_text[start:end]
-        # 使用 <span title="..."> 來建立滑鼠懸停提示
         highlighted_segment = f'<span class="highlight" style="background-color:{color};" title="{tooltip_text}">{html.escape(original_segment)}</span>'
         highlighted_text = highlighted_text[:start] + highlighted_segment + highlighted_text[end:]
 
-    # 建立報告表格的每一行
     table_rows = ""
     for res in sorted(analysis_results, key=lambda x: x['original_chunk']['metadata']['start_char']):
-        # 安全地獲取所有資料
         verdict = res.get('llm_verdict', {})
-        source_hit = res.get('source_hit', {}) # 如果沒有來源，回傳空字典
         
-        original_chunk_text = res['original_chunk'].get('text', '')
+        # =================================================================
+        # 【修改處】這是最關鍵的修正
+        # 使用 `or {}` 來確保即使 source_hit 是 None，也能安全地處理
+        source_hit = res.get('source_hit') or {}
+        # =================================================================
+        
+        chunk_meta = res['original_chunk']['metadata']
+        start = chunk_meta['start_char'] - min_offset
+        end = chunk_meta['end_char'] - min_offset
+        
+        if start < 0 or end > len(original_text):
+            continue
+        display_text = original_text[start:end]
+
         source_text = source_hit.get('text', 'N/A (無網路來源)')
         source_url = source_hit.get('url', '#')
         similarity = source_hit.get('similarity', 0.0)
@@ -78,7 +94,7 @@ def _generate_html_report(original_text: str, analysis_results: List[Dict], doc_
 
         table_rows += f"""
         <tr>
-            <td>{html.escape(original_chunk_text[:200])}...</td>
+            <td>{html.escape(display_text[:300])}...</td>
             <td><a href="{source_url}" target="_blank">{html.escape(source_text[:200])}...</a></td>
             <td>{similarity:.3f}</td>
             <td>{judgement_html}</td>
@@ -87,7 +103,6 @@ def _generate_html_report(original_text: str, analysis_results: List[Dict], doc_
         </tr>
         """
     
-    # 完整的 HTML 模板
     html_template = f"""
     <html>
     <head>
@@ -112,20 +127,20 @@ def _generate_html_report(original_text: str, analysis_results: List[Dict], doc_
         <p><strong>文件名稱:</strong> {doc_id}</p>
         
         <div class="summary">
-            <strong>報告總結:</strong> 共發現 {len(analysis_results)} 個高風險段落。請檢視下方高亮原文與詳細分析表格。
+            <strong>報告總結:</strong> 本次分析針對指定章節，共發現 {len(analysis_results)} 個高風險段落。請檢視下方高亮原文與詳細分析表格。
         </div>
 
-        <h2>高亮原文 (滑鼠可懸停查看原因)</h2>
+        <h2>高亮原文 (僅顯示被分析之章節)</h2>
         <div class="content">{highlighted_text}</div>
         
         <h2>詳細分析表格</h2>
         <table>
             <tr>
                 <th>可疑段落原文 (預覽)</th>
-                <th>相似來源 (含連結)</th>
+                <th>最相似網路來源 (含連結)</th>
                 <th>相似度分數</th>
                 <th>AI/抄襲判斷</th>
-                <th>LLM 判斷理由</th>
+                <th>判斷理由</th>
                 <th>信賴度</th>
             </tr>
             {table_rows}
@@ -143,23 +158,22 @@ def _generate_html_report(original_text: str, analysis_results: List[Dict], doc_
 
 def _generate_json_report(analysis_results: List[Dict], doc_id: str) -> str:
     """產生一份機器可讀的 JSON 格式報告。"""
-    
-    # 計算總結指標
     plagiarism_count = sum(1 for res in analysis_results if res.get('llm_verdict', {}).get('web_plagiarism'))
-    ai_count = sum(1 for res in analysis_results if res.get('llm_verdict', {}).get('ai_generated') and not res.get('llm_verdict', {}).get('web_plagiarism'))
+    ai_count = sum(1 for res in analysis_results if res.get('llm_verdict', {}).get('ai_generated'))
 
     output = {
         "doc_id": doc_id,
         "summary": {
             "total_suspicious_chunks": len(analysis_results),
             "plagiarism_chunks_count": plagiarism_count,
-            "ai_only_chunks_count": ai_count
+            "ai_chunks_count": ai_count
         },
         "details": []
     }
 
     for res in analysis_results:
-        source_hit = res.get('source_hit', {})
+        # 同樣的修正也應用在這裡，確保 JSON 報告的穩健性
+        source_hit = res.get('source_hit') or {}
         output['details'].append({
             "original_chunk_metadata": res.get('original_chunk', {}).get('metadata'),
             "original_chunk_text": res.get('original_chunk', {}).get('text'),
@@ -168,7 +182,7 @@ def _generate_json_report(analysis_results: List[Dict], doc_id: str) -> str:
                 "url": source_hit.get('url'),
                 "similarity_score": source_hit.get('similarity'),
                 "source_text_preview": source_hit.get('text', '')[:200] + '...' if source_hit.get('text') else None
-            } if source_hit else None
+            }
         })
 
     report_path = os.path.join(config.REPORT_OUTPUT_DIR, f"{doc_id}_summary.json")

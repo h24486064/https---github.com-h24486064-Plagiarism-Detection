@@ -10,7 +10,6 @@ from cache_manager import CacheManager
 
 class SimilarityService:
     def __init__(self, cache_manager: CacheManager):
-        # 不再需要初始化 client，因為 get_embedding 會直接呼叫
         self.cache = cache_manager
 
     def _cosine_similarity(self, a, b):
@@ -18,18 +17,16 @@ class SimilarityService:
     
     def get_embedding(self, text: str, url: str = "local") -> List[float]:
         """獲取文字的 embedding，優先從快取讀取。"""
-        # 如果是網路內容，用 URL 當 key
         if url != "local":
             cached_data = self.cache.get_content_cache(url)
             if cached_data and 'embedding' in cached_data:
                 return cached_data['embedding']
 
-        # 快取未命中，呼叫 Google API
         # 注意：genai 的 embedding 介面與 openai 不同
         response = genai.embed_content(
             model=config.EMBEDDING_MODEL,
             content=text,
-            task_type="RETRIEVAL_DOCUMENT" # 或 "SEMANTIC_SIMILARITY"
+            task_type="RETRIEVAL_DOCUMENT" 
         )
         embedding = response['embedding']
 

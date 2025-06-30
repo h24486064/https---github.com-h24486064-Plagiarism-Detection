@@ -13,23 +13,34 @@ class AnalysisService:
 
     def get_ai_detection_score(self, text: str) -> float:
         """
-        【已修改】使用 Gemini API 判斷文字由 AI 生成的可能性。
-        回傳一個 0 到 100 的分數，並印出理由。
+        使用 Gemini API 判斷是否由 AI 生成。
         """
         print("  - 正在使用 Gemini 進行 AI 生成內容分析...")
         
-        # 設計一個專門用於判斷 AI 生成內容的提示 (Prompt)
         prompt = f"""
-        請你由 0 到 100 分，評估以下內容為 AI 生成的可能性，並提供一個簡短的理由。
-
-        請將你的評估以一個 JSON 物件的形式回傳，該物件應包含以下兩個鍵：
-        - "ai_generated_score": 一個 0 到 100 之間的整數。
-        - "justification": 一個解釋你評分理由的字串。
-
+        你是一位專業「AI 文字鑑定師」，熟悉大型語言模型（LLM）常見的語言特徵、幻覺模式與人類寫作風格。請仔細閱讀下方待測文字，並依指示輸出判斷結果：
+        
         待分析的文字:
         \"\"\"
         {text}
         \"\"\"
+        **重要規則：**
+        1.  **忽略格式與結構**：你必須完全忽略文本的排版、學術格式、引用標記或章節結構。目標文本是一篇經過良好排版的學術論文，所以這些外部形式沒有參考價值。
+        2.  **專注於內容本身**：請只根據文本的「內容」進行判斷。重點分析以下幾點：
+            * **用詞與語氣**：是否存在不自然的詞彙、過於奉承或空洞的形容詞？語氣是否在不同段落間顯得不連貫？
+            * **句子複雜度**：句法結構是否過於單一或異常複雜，不像人類自然的寫作模式？
+            * **邏輯與連貫性**：論述的邏輯是否清晰？是否存在不合邏輯的跳躍或前後矛盾之處？
+            * **細節與原創性**：文本是否提出了具體的、有深度的見解，還是僅僅在複述普遍的知識？
+
+        請你根據上述標準，提供 0 到 100 分的評分，並給出一個**只基於內容分析**的簡短理由。
+
+        請將你的評估以一個 JSON 物件的形式回傳，該物件應包含以下兩個鍵：
+        - "ai_generated_score": 一個 0 到 100 之間的整數。
+        - "justification": 一個解釋你評分理由的字串（請確保理由符合上述分析標準）。
+            * 如果分數很高（例如 > 70），你的理由**必須**解釋你看到了哪些符合 AI 生成的特徵。
+            * 如果分數很低（例如 < 30），你的理由**必須**解釋文本展現了哪些人類寫作的特徵。
+        如果分數跟高但你給出的評論支持並非AI所生成的回應，這是邏輯問題，請重新修正。
+       
 
         JSON output:
         """
@@ -40,26 +51,25 @@ class AnalysisService:
                 prompt,
                 generation_config=genai.types.GenerationConfig(
                     response_mime_type="application/json",
-                    temperature=0.0 # 使用低溫模式以獲得更穩定的判斷
+                    temperature=0.2
                 )
             )
             # 清理並解析 Gemini 回傳的 JSON
             cleaned_json = response.text.strip().lstrip("```json").rstrip("```")
             result = json.loads(cleaned_json)
             
-            # 從結果中提取分數和理由
             score = int(result.get("ai_generated_score", 0))
             justification = result.get("justification", "沒有提供理由。")
             
             print(f"  - AI 分析理由: {justification}")
-            return float(score) # 回傳分數
+            return float(score)
         except Exception as e:
             print(f"  - AI 檢測失敗: {e}")
-            # 如果 API 呼叫失敗，回傳一個低分數，避免誤判
             return 0.0
 
     def generate_search_queries(self, text: str) -> List[str]:
         """使用 Gemini 從段落中提取適合網路搜尋的關鍵詞組。"""
+        # (此函式維持原樣，無需修改)
         prompt = f"""
         Extract up to 3 distinct, concise web-search queries (max 32 tokens each) 
         that would be most effective at finding the original source of the following text.
@@ -74,7 +84,6 @@ class AnalysisService:
         JSON output:
         """
         try:
-            # 使用 Gemini API
             response = self.model.generate_content(
                 prompt,
                 generation_config=genai.types.GenerationConfig(
@@ -82,18 +91,17 @@ class AnalysisService:
                     temperature=0.0
                 )
             )
-            # Gemini 回傳的 content 可能包含 Markdown 標籤，需要清理
             cleaned_json = response.text.strip().lstrip("```json").rstrip("```")
             queries = json.loads(cleaned_json)
-            # 確保輸出是列表
             return queries.get("queries", []) if isinstance(queries, dict) else queries
         except Exception as e:
             print(f"查詢生成失敗: {e}")
-            # Fallback: 使用簡單的文字切片
             return [text[:128]]
 
+    # 【說明】下方的 get_llm_adjudication 函式在您目前的流程中已經不會被使用，
+    # 但我們保留它以備不時之需。
     def get_llm_adjudication(self, suspect_chunk: str, hit_chunk: str, source_url: str, ai_score: float) -> Dict:
-        """模組 3: LLM 裁決層，使用 Gemini 綜合所有證據進行判斷。"""
+        """模組 3: LLM 裁決層 (目前已停用)。"""
         prompt = f"""
         You are an academic integrity adjudicator. Based on the following data, determine if the student's paragraph is likely AI-generated or plagiarized from a web source without proper citation.
 
@@ -112,12 +120,11 @@ class AnalysisService:
         - "justification": string, a brief explanation for your decision, referencing the evidence.
         """
         try:
-            # 使用 Gemini API
             response = self.model.generate_content(
                 prompt,
                 generation_config=genai.types.GenerationConfig(
                     response_mime_type="application/json",
-                    temperature=0.1
+                    temperature=0.8
                 )
             )
             cleaned_json = response.text.strip().lstrip("```json").rstrip("```")

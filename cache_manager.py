@@ -1,4 +1,3 @@
-# cache_manager.py
 import sqlite3
 import json
 import hashlib
@@ -26,7 +25,6 @@ class CacheManager:
     def _get_hash(self, text: str) -> str:
         return hashlib.sha256(text.encode()).hexdigest()
 
-    # --- Query Cache (SQLite) ---
     def get_query_cache(self, query: str) -> Optional[List[Dict]]:
         query_hash = self._get_hash(query)
         cursor = self.conn.cursor()
@@ -42,7 +40,6 @@ class CacheManager:
                 (query_hash, json.dumps(results))
             )
 
-    # --- Content & Embedding Cache (JSONL-like file system) ---
     def get_content_cache(self, url: str) -> Optional[Dict[str, Any]]:
         url_hash = self._get_hash(url)
         cache_path = os.path.join(config.CONTENT_CACHE_DIR, f"{url_hash}.json")

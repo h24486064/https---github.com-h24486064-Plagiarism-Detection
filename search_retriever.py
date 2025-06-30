@@ -1,10 +1,10 @@
 # search_retriever.py
 import requests
 from typing import List, Dict, Optional
-# pip install trafilatura
 from trafilatura import fetch_url, extract
 import config
 from cache_manager import CacheManager
+import time
 
 class SearchRetriever:
     def __init__(self, cache_manager: CacheManager):
@@ -30,15 +30,23 @@ class SearchRetriever:
             extracted = [{"title": r['title'], "link": r['link']} for r in results]
             self.cache.set_query_cache(f"google:{query}", extracted)
             return extracted
-        except requests.RequestException as e:
-            print(f"Google Search API 錯誤: {e}")
+        except requests.exceptions.RequestException as e:
+            if '429' in str(e):
+                print(f"    - [警告] Google Search API 速率過快 (429)，該次搜尋失敗。")
+            else:
+                print(f"    - [錯誤] Google Search API 發生錯誤: {e}")
             return []
 
     def run_searches(self, queries: List[str]) -> Dict[str, str]:
         """對一組查詢執行所有搜尋，並回傳去重的 URL 字典。"""
         all_urls = {}
         for q in queries:
-            # 整合 Google Search, Semantic Scholar 等
+            # =================================================================
+            # 【修改處】在每次搜尋之間，強制加入 1 秒的延遲
+            time.sleep(1)
+            # =================================-================================
+            
+            print(f"    - 正在搜尋關鍵字: \"{q[:50]}...\"")
             google_results = self.search_google(q)
             for res in google_results:
                 all_urls[res['link']] = res['title']
@@ -50,14 +58,15 @@ class SearchRetriever:
         if cached_content and 'cleaned_text' in cached_content:
             return cached_content['cleaned_text']
 
-        # 潛在坑洞: 動態載入 (JS-heavy) 的網站 trafilatura 可能抓不到
-        # Fallback 或使用 headless browser (Playwright/Selenium) 是進階解法
-        downloaded = fetch_url(url)
-        if downloaded:
-            # extract 會移除樣板、廣告等雜訊
-            cleaned_text = extract(downloaded, include_comments=False, include_tables=False)
-            if cleaned_text:
-                # 存入快取
-                self.cache.set_content_cache(url, {'cleaned_text': cleaned_text})
-                return cleaned_text
+        try:
+            downloaded = fetch_url(url)
+            if downloaded:
+                cleaned_text = extract(downloaded, include_comments=False, include_tables=False)
+                if cleaned_text:
+                    self.cache.set_content_cache(url, {'cleaned_text': cleaned_text})
+                    return cleaned_text
+        except Exception as e:
+            print(f"      - [錯誤] 下載或清理失敗: {url}, 原因: {e}")
+            return None
+            
         return None
