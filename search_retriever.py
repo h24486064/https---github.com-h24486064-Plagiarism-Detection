@@ -27,7 +27,9 @@ class SearchRetriever:
             response = requests.get(url, params=params)
             response.raise_for_status()
             results = response.json().get('items', [])
-            extracted = [{"title": r['title'], "link": r['link']} for r in results]
+            if not results:
+                 return []
+            extracted = [{"title": r.get('title', ''), "link": r.get('link', '')} for r in results]
             self.cache.set_query_cache(f"google:{query}", extracted)
             return extracted
         except requests.exceptions.RequestException as e:
@@ -42,14 +44,15 @@ class SearchRetriever:
         all_urls = {}
         for q in queries:
             # =================================================================
-            # 【修改處】在每次搜尋之間，強制加入 1 秒的延遲
-            time.sleep(1)
-            # =================================-================================
+            # 【修改處】將延遲增加到 2 秒，以確保穩定性
+            time.sleep(2)
+            # =================================================================
             
             print(f"    - 正在搜尋關鍵字: \"{q[:50]}...\"")
             google_results = self.search_google(q)
             for res in google_results:
-                all_urls[res['link']] = res['title']
+                if res.get('link'): # 確保連結存在
+                    all_urls[res['link']] = res.get('title', '無標題')
         return all_urls
 
     def download_and_clean(self, url: str) -> Optional[str]:
@@ -59,7 +62,7 @@ class SearchRetriever:
             return cached_content['cleaned_text']
 
         try:
-            downloaded = fetch_url(url)
+            downloaded = fetch_url(url, timeout=15) # 增加超時設定
             if downloaded:
                 cleaned_text = extract(downloaded, include_comments=False, include_tables=False)
                 if cleaned_text:

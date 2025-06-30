@@ -8,7 +8,7 @@ load_dotenv()
 # --- Google Gemini API ---
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
-# --- Model Selection (全部使用 Google 的模型) ---
+
 EMBEDDING_MODEL = "text-embedding-004" 
 GENERATIVE_MODEL = "gemini-2.5-flash"
 

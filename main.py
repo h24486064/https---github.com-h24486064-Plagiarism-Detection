@@ -3,7 +3,11 @@ import os
 import time
 
 import config
-from document_processor import process_document, Chunk
+# 【修改處】引入新的工具和舊的函式
+from document_processor import process_document, Chunk, _pdf_to_text
+from ai_literature_extractor import extract_lit_review_via_ai
+# =================================================================
+
 from cache_manager import CacheManager
 from search_retriever import SearchRetriever
 from analysis_service import AnalysisService
@@ -15,13 +19,30 @@ def run_online_check(target_doc_path: str):
     print(f"--- 開始線上檢測文件: {doc_id} ---")
     start_time = time.time()
 
-    # 初始化所有服務
+    # 初始化服務
     cache = CacheManager()
     retriever = SearchRetriever(cache)
     analyzer = AnalysisService()
     similarity = SimilarityService(cache)
     
-    chunks, section_text_for_report = process_document(target_doc_path, doc_id)
+    # 將整個 PDF 轉為純文字
+    print("正在讀取並轉換 PDF 全文...")
+    full_text = _pdf_to_text(target_doc_path)
+    if not full_text:
+        print("[錯誤] 無法從 PDF 中提取任何文字。")
+        return
+
+    #  呼叫 AI 擷取文獻回顧
+    print("正在呼叫 AI 擷取『文獻回顧』章節...")
+    section_text_for_report = extract_lit_review_via_ai(full_text)
+    if not section_text_for_report:
+        print("[錯誤] AI 未能成功擷取到文獻回顧章節。")
+        return
+    print("[INFO] AI 已成功擷取目標章節！")
+
+    # 將 AI 擷取出的文字，給 document_processor 切塊
+    chunks = process_document(section_text_for_report, doc_id)
+    # =================================================================
     
     if not chunks:
         return
@@ -30,20 +51,17 @@ def run_online_check(target_doc_path: str):
     for i, chunk in enumerate(chunks):
         print(f"\n[INFO] 正在處理區塊 {i+1}/{len(chunks)}...")
         
-        # 1. 進行 AI 生成檢測
+        # 進行 AI 生成檢測...
         ai_score = analyzer.get_ai_detection_score(chunk.text)
         is_ai_generated = ai_score > 80 
         print(f"  - AI 生成分數: {ai_score:.0f}/100")
 
-        # =================================================================
-        # 【修改處】改回呼叫 AI 來生成搜尋查詢
+        # 進行線上來源比對...
         queries = analyzer.generate_search_queries(chunk.text)
         print(f"  - AI 生成的搜尋查詢: {queries}")
         urls_titles = retriever.run_searches(queries)
-        # =================================================================
         
         candidate_pages = {}
-        # 限制只處理前 5 個結果
         for url, title in list(urls_titles.items())[:5]:
             print(f"    - 下載與清理來源: {title} ({url})")
             content = retriever.download_and_clean(url)
@@ -52,7 +70,7 @@ def run_online_check(target_doc_path: str):
 
         top_hits = similarity.find_top_hits(chunk.text, candidate_pages)
 
-        # 3. 直接根據分數進行判斷
+        # 判斷結果...
         best_hit = None
         is_plagiarized = False
         if top_hits:
@@ -65,7 +83,7 @@ def run_online_check(target_doc_path: str):
         else:
             print("  - [抄襲判斷] 未發現高相似度網路來源。")
 
-        # 4. 綜合判斷結果
+        # 綜合判斷...
         if is_ai_generated or is_plagiarized:
             justifications = []
             if is_plagiarized:
@@ -107,7 +125,7 @@ if __name__ == '__main__':
     os.makedirs("cache", exist_ok=True)
     os.makedirs("reports", exist_ok=True)
 
-    target_document = "submissions/test.pdf"
+    target_document = "submissions/test.pdf" # 請將您的測試檔案放在 submissions 資料夾
     
     if not os.path.exists(target_document):
         print(f"錯誤：找不到目標文件 '{target_document}'。")

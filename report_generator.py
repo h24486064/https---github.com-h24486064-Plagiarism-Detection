@@ -1,3 +1,5 @@
+# report_generator.py
+
 import json
 import os
 import html
@@ -6,9 +8,6 @@ from typing import List, Dict
 import config
 
 def generate_reports(original_text: str, analysis_results: List[Dict], doc_id: str):
-    """
-    一個主函式，同時生成 HTML 和 JSON 兩種格式的報告。
-    """
     if not analysis_results:
         print("沒有發現可疑段落，不生成報告。")
         return
@@ -24,26 +23,25 @@ def generate_reports(original_text: str, analysis_results: List[Dict], doc_id: s
 
 
 def _generate_html_report(original_text: str, analysis_results: List[Dict], doc_id: str) -> str:
-    """
-    產生一份詳細、高亮顯示的 HTML 報告。
-    """
     highlighted_text = original_text
     
     if not analysis_results:
         return ""
 
-    min_offset = min(res['original_chunk']['metadata']['start_char'] for res in analysis_results)
-    
+    # 從後往前替換，避免字元索引錯亂
     sorted_results = sorted(analysis_results, key=lambda x: x['original_chunk']['metadata']['start_char'], reverse=True)
     
     for result in sorted_results:
         chunk_meta = result['original_chunk']['metadata']
         
-        start = chunk_meta['start_char'] - min_offset
-        end = chunk_meta['end_char'] - min_offset
+        # =================================================================
+        # 【修改處】因為 chunks 的位置現在直接相對於章節原文，不再需要計算偏移量
+        start = chunk_meta['start_char']
+        end = chunk_meta['end_char']
+        # =================================================================
         
         if start < 0 or end > len(highlighted_text):
-            print(f"[警告] 偵測到無效的高亮位置 (start={start}, end={end})，已跳過此區塊。")
+            print(f"偵測到無效的高亮位置 (start={start}, end={end})，已跳過此區塊。")
             continue
 
         verdict = result.get('llm_verdict', {})
@@ -68,16 +66,12 @@ def _generate_html_report(original_text: str, analysis_results: List[Dict], doc_
     table_rows = ""
     for res in sorted(analysis_results, key=lambda x: x['original_chunk']['metadata']['start_char']):
         verdict = res.get('llm_verdict', {})
-        
-        # =================================================================
-        # 【修改處】這是最關鍵的修正
-        # 使用 `or {}` 來確保即使 source_hit 是 None，也能安全地處理
         source_hit = res.get('source_hit') or {}
-        # =================================================================
         
         chunk_meta = res['original_chunk']['metadata']
-        start = chunk_meta['start_char'] - min_offset
-        end = chunk_meta['end_char'] - min_offset
+        # 同樣地，直接使用 chunk 的位置
+        start = chunk_meta['start_char']
+        end = chunk_meta['end_char']
         
         if start < 0 or end > len(original_text):
             continue
@@ -172,7 +166,6 @@ def _generate_json_report(analysis_results: List[Dict], doc_id: str) -> str:
     }
 
     for res in analysis_results:
-        # 同樣的修正也應用在這裡，確保 JSON 報告的穩健性
         source_hit = res.get('source_hit') or {}
         output['details'].append({
             "original_chunk_metadata": res.get('original_chunk', {}).get('metadata'),
