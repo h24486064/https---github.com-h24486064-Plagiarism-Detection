@@ -125,7 +125,7 @@ if __name__ == '__main__':
     os.makedirs("cache", exist_ok=True)
     os.makedirs("reports", exist_ok=True)
 
-    target_document = "submissions/test.pdf" # 請將您的測試檔案放在 submissions 資料夾
+    target_document = "submissions/test.pdf" # 測試檔案放在 submissions 資料夾
     
     if not os.path.exists(target_document):
         print(f"錯誤：找不到目標文件 '{target_document}'。")

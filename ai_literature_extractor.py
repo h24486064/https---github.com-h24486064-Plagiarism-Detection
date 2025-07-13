@@ -56,3 +56,26 @@ def extract_lit_review_via_ai(text: str) -> str:
     except Exception as e:
         print(f"    - [錯誤] AI 擷取章節時發生錯誤: {e}")
         return ""
+    
+import re
+def extract_inline_citations(paragraph: str):
+    pat = r"\(([A-Z][A-Za-z\- ]+?)(?: et al\.)?,\s*\d{4}\)"
+    return re.findall(pat, paragraph)
+
+
+def extract_paragraphs_with_citations(review_text: str):
+    """
+    參數：Step 1 回傳的 review_text
+    回傳： [{'idx':0, 'paragraph':..., 'citations':[('Smith', '2022'), ...]}, ...]
+    """
+    para_list = []
+    raw_paras = [p.strip() for p in review_text.split("\n\n") if p.strip()]
+    for idx, p in enumerate(raw_paras):
+        cits = citation_parser.extract_inline_citations(p)
+        if cits:                       # 只保留有引用的段落
+            para_list.append({
+                "idx": idx,
+                "paragraph": p,
+                "citations": list(set(cits))
+            })
+    return para_list     
